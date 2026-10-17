@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pekay Fitness — All-in-One Gym & PT Tracker</title>
+<!-- SheetJS library for CSV/Excel parsing -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17202a;background:#f4f6f8}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1050px;margin:auto;padding:16px}
+header{background:#111827;color:white;padding:20px;border-radius:18px;margin-bottom:14px}
+h1{font-size:23px;margin:0 0 5px} .muted{opacity:.7;font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.card,.panel{background:white;border-radius:16px;padding:15px;box-shadow:0 2px 10px #0000000b}
+.big{font-size:22px;font-weight:800}.label{font-size:12px;color:#667085}
+.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:12px}.tabs button{white-space:nowrap;border:0;border-radius:12px;padding:11px 14px;background:#e5e7eb}.tabs button.active{background:#111827;color:white}
+.panel{margin-bottom:14px}.row{display:flex;gap:9px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+input,select,button,textarea{font:inherit}input,select,textarea{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:11px;background:white}
+textarea{resize:vertical;min-height:80px}
+button{border:0;border-radius:11px;padding:12px 14px;font-weight:700;cursor:pointer}.primary{background:#111827;color:white}.success{background:#15803d;color:white}.danger{background:#b91c1c;color:white}.secondary{background:#e5e7eb}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 6px;border-bottom:1px solid #eee}th{font-size:12px;color:#667085}
+.hidden{display:none}.member{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #eee}
+.pill{font-size:11px;padding:5px 8px;border-radius:20px;font-weight:600;display:inline-block}
+.pill-active{background:#dcfce7;color:#166534}
+.pill-warning{background:#fef3c7;color:#92400e}
+.pill-danger{background:#fee2e2;color:#991b1b}
+.notice{padding:12px;border-radius:12px;background:#fff7ed;color:#9a3412;font-size:13px;margin-bottom:12px}
+.btn-sm{padding:6px 10px;font-size:12px;border-radius:8px}
+
+/* Custom Searchable Dropdown Styling */
+.dropdown-container{position:relative;width:100%}
+.dropdown-options{position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:white;border:1px solid #d1d5db;border-top:none;border-bottom-left-radius:11px;border-bottom-right-radius:11px;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+.dropdown-option{padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f3f4f6}
+.dropdown-option:hover,.dropdown-option.selected{background:#f3f4f6;font-weight:bold}
+
+.layout-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.preview-container{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;background:#f9fafb;border:1px dashed #d1d5db;border-radius:12px;padding:20px}
+.receipt-box{background:#fff;padding:24px;border-radius:12px;width:100%;max-width:340px;box-shadow:0 4px 15px rgba(0,0,0,0.08);text-align:center;border:1px solid #e5e7eb}
+.receipt-header{border-bottom:2px dashed #000;padding-bottom:12px;margin-bottom:12px}
+.receipt-title{font-size:18px;font-weight:bold;margin:0 0 4px 0}
+.receipt-row{display:flex;justify-content:space-between;margin:6px 0;font-size:13px;text-align:left}
+.receipt-footer{border-top:2px dashed #000;padding-top:12px;margin-top:12px;font-size:11px;color:#555}
+.item-active{background:#f3f4f6}
+
+@media print {
+  body * { visibility: hidden; }
+  #printableReceipt, #printableReceipt * { visibility: visible; }
+  #printableReceipt { position: absolute; left: 0; top: 0; width: 100%; height: auto; border: none; box-shadow: none; padding: 0; margin: 0; }
+  .no-print { display: none !important; }
+}
+@media(max-width:850px){
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .wrap{padding:10px}
+  table{font-size:11px}
+  .layout-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Pekay Fitness</h1><div class="muted">Complete Gym Attendance, Dues & Personal Training Platform</div></header>
+
+<div class="cards">
+<div class="card"><div class="label">Today's Check-ins</div><div class="big" id="todayCount">0</div></div>
+<div class="card"><div class="label">Total Members</div><div class="big" id="memberCount">0</div></div>
+<div class="card"><div class="label">Pending/Overdue Dues</div><div class="big" id="pendingDuesCount" style="color:#b91c1c">0</div></div>
+<div class="card"><div class="label">PT Sessions Logged</div><div class="big" id="totalSessions">0</div></div>
+<div class="card"><div class="label">Avg Client Body Fat</div><div class="big" id="avgBf">0%</div></div>
+</div>
+
+<div class="tabs">
+<button class="active" onclick="showTab('checkin',this)">Check In</button>
+<button onclick="showTab('dues',this)">Monthly Dues</button>
+<button onclick="showTab('logMetrics',this)">PT Metrics</button>
+<button onclick="showTab('dailyWorkout',this)">Workout & Diet</button>
+<button onclick="showTab('members',this)">Members & Clients</button>
+<button onclick="showTab('history',this)">History Logs</button>
+<button onclick="showTab('receipts',this)" id="tab-receipts-btn">Receipts & Cards</button>
+<button onclick="showTab('backup',this)">Backup & Data</button>
+</div>
+
+<!-- Check In Tab -->
+<section id="checkin" class="panel">
+<h2>Check In Member</h2>
+<div class="notice">Tip: Type a member's name or ID below to quickly search and check them in.</div>
+<div class="row">
+<div><label>Search Member Name or ID</label><input id="checkinId" placeholder="e.g. PF-0001 or John Doe" autofocus oninput="renderCheckinSearchResults()"></div>
+<div style="align-self:end"><button class="success" onclick="checkIn()">✓ Check In</button></div>
+</div>
+<div id="checkinMsg" style="margin-top:12px"></div>
+
+<div id="checkinSearchArea" style="margin-top:18px;">
+  <div style="font-weight:bold; margin-bottom:8px; font-size:14px;" id="checkinSearchResultsHeader">Quick Member Search</div>
+  <div id="checkinSearchResults" style="max-height:280px; overflow-y:auto; border:1px solid #eee; border-radius:11px; padding:0 12px;"></div>
+</div>
+</section>
+
+<!-- Monthly Dues Management Tab -->
+<section id="dues" class="panel hidden">
+<h2>Monthly Dues & Renewal Tracker</h2>
+<div class="notice">Record payment transactions, set due dates, and track members whose subscriptions are up for renewal.</div>
+
+<div style="font-weight:bold; margin-bottom:8px;">Record New Payment / Renewal</div>
+<div class="row">
+  <div>
+    <label>Select Member/Client</label>
+    <div class="dropdown-container" id="dClientContainer">
+      <input type="hidden" id="dClientSelect" value="">
+      <input type="text" id="dClientSearch" placeholder="Type to search member or ID..." autocomplete="off" onfocus="showDuesClientOptions()" oninput="filterDuesClients()">
+      <div id="dClientOptions" class="dropdown-options hidden"></div>
+    </div>
+  </div>
+  <div>
+    <label>Gender</label>
+    <select id="dGender">
+      <option value="">Select gender</option>
+      <option value="Female">Female</option>
+      <option value="Male">Male</option>
+      <option value="Other">Other</option>
+      <option value="Prefer not to say">Prefer not to say</option>
+    </select>
+  </div>
+  <div>
+    <label>Amount Paid</label>
+    <input type="number" id="dAmount" placeholder="e.g. 250">
+  </div>
+  <div>
+    <label>Payment Date</label>
+    <input type="date" id="dPayDate">
+  </div>
+  <div>
+    <label>Next Due Date</label>
+    <input type="date" id="dDueDate">
+  </div>
+  <div>
+    <label>Payment Method / Note</label>
+    <input type="text" id="dNote" placeholder="Cash, MoMo, Bank Transfer...">
+  </div>
+</div>
+<div style="margin-top:12px">
+  <button class="success" onclick="recordDuesPayment()">✓ Record Payment</button>
+</div>
+<div id="duesMsg" style="margin-top:12px"></div>
+
+<hr style="margin:20px 0; border:0; border-top:1px solid #eee">
+
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+  <h3 style="margin:0;">Payment Records & Expiry Status</h3>
+  <div style="display:flex; gap:8px;">
+    <select id="duesFilterStatus" onchange="renderDuesTable()" style="width:auto;">
+      <option value="all">All Payment Statuses</option>
+      <option value="dueSoon">Due Soon (5 Days)</option>
+      <option value="overdue">Overdue / Expired</option>
+      <option value="paid">Active / Paid</option>
+    </select>
+    <input type="text" id="duesSearchInput" placeholder="Search dues..." oninput="renderDuesTable()" style="width:180px;">
+  </div>
+</div>
+
+<div style="overflow:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Member</th>
+        <th>Gender</th>
+        <th>Category</th>
+        <th>Amount</th>
+        <th>Paid Date</th>
+        <th>Next Due Date</th>
+        <th>Status</th>
+        <th>Notes</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="duesTableBody"></tbody>
+  </table>
+</div>
+</section>
+
+<!-- Log PT Body Metrics Session -->
+<section id="logMetrics" class="panel hidden">
+<h2>Log PT Body Metrics & Photos</h2>
+<div class="notice">Track client circumference measurements (cm), bio-metrics (kg), and progress photo links.</div>
+
+<div class="row">
+  <div>
+    <label>Select Member/Client</label>
+    <div class="dropdown-container" id="sClientContainer">
+      <input type="hidden" id="sClientSelect" value="">
+      <input type="text" id="sClientSearch" placeholder="Type to search member or ID..." autocomplete="off" onfocus="showMetricsClientOptions()" oninput="filterMetricsClients()">
+      <div id="sClientOptions" class="dropdown-options hidden"></div>
+    </div>
+  </div>
+  <div>
+    <label>Date</label>
+    <input type="date" id="sDate">
+  </div>
+</div>
+
+<div style="font-weight:bold; margin-top:14px; margin-bottom:6px;">Body Metrics & Circumferences</div>
+<div class="row">
+  <div><label>Weight (kg)</label><input type="number" step="0.1" id="sWeight" placeholder="e.g. 78.5"></div>
+  <div><label>Body Fat %</label><input type="number" step="0.1" id="sBodyFat" placeholder="e.g. 18.5"></div>
+  <div><label>Muscle Mass (kg)</label><input type="number" step="0.1" id="sMuscle" placeholder="e.g. 62.0"></div>
+</div>
+<div class="row" style="margin-top:8px">
+  <div><label>Waist (cm)</label><input type="number" step="0.5" id="sWaist" placeholder="e.g. 82"></div>
+  <div><label>Hip (cm)</label><input type="number" step="0.5" id="sHip" placeholder="e.g. 98"></div>
+  <div><label>Chest (cm)</label><input type="number" step="0.5" id="sChest" placeholder="e.g. 104"></div>
+  <div><label>Arm (cm)</label><input type="number" step="0.5" id="sArm" placeholder="e.g. 36.5"></div>
+  <div><label>Thigh (cm)</label><input type="number" step="0.5" id="sThigh" placeholder="e.g. 58"></div>
+</div>
+
+<div style="font-weight:bold; margin-top:14px; margin-bottom:6px;">Progress Photos (Links / References)</div>
+<div class="row">
+  <div><label>Front Photo URL</label><input id="sPhotoFront" placeholder="Link or File Name"></div>
+  <div><label>Side Photo URL</label><input id="sPhotoSide" placeholder="Link or File Name"></div>
+  <div><label>Back Photo URL</label><input id="sPhotoBack" placeholder="Link or File Name"></div>
+</div>
+
+<div style="margin-top:14px">
+  <button class="success" onclick="logPtSession()">✓ Save Body Metrics Log</button>
+</div>
+<div id="sessionMsg" style="margin-top:12px"></div>
+</section>
+
+<!-- Daily Workout & Diet Tab -->
+<section id="dailyWorkout" class="panel hidden">
+<h2>Daily Workout & Diet Tracker</h2>
+<div class="notice">Log exercises, sets, reps, weight loaded, and full food intake for personal training clients.</div>
+
+<div class="row">
+  <div>
+    <label>Select Member/Client</label>
+    <div class="dropdown-container" id="wClientContainer">
+      <input type="hidden" id="wClientSelect" value="">
+      <input type="text" id="wClientSearch" placeholder="Type to search member or ID..." autocomplete="off" onfocus="showWorkoutClientOptions()" oninput="filterWorkoutClients()">
+      <div id="wClientOptions" class="dropdown-options hidden"></div>
+    </div>
+  </div>
+  <div>
+    <label>Workout Date</label>
+    <input type="date" id="wDate">
+  </div>
+</div>
+
+<div style="font-weight:bold; margin-top:14px; margin-bottom:6px;">Exercises Performed</div>
+<div id="exerciseRows">
+  <div class="row exercise-entry" style="margin-bottom:8px">
+    <input placeholder="Exercise Name (e.g. Bench Press)" class="ex-name">
+    <input type="number" placeholder="Sets" class="ex-sets" style="max-width:90px">
+    <input type="number" placeholder="Reps" class="ex-reps" style="max-width:90px">
+    <input type="number" step="0.5" placeholder="Weight (kg)" class="ex-weight" style="max-width:120px">
+  </div>
+</div>
+<button class="secondary btn-sm" onclick="addExerciseRow()" style="margin-bottom:14px">+ Add Another Exercise</button>
+
+<div style="font-weight:bold; margin-top:10px; margin-bottom:6px;">Food & Nutrition Intake</div>
+<div class="row">
+  <textarea id="wDiet" placeholder="Diet Log (e.g. Breakfast: 3 eggs, oatmeal | Lunch: Chicken rice bowl | Snacks: Protein shake)"></textarea>
+</div>
+<div class="row" style="margin-top:8px">
+  <div><label>Caloric Target (kcal)</label><input type="number" id="wCalories" placeholder="e.g. 2300"></div>
+  <div><label>Water Intake (Liters)</label><input type="number" step="0.1" id="wWater" placeholder="e.g. 3.5"></div>
+</div>
+
+<div style="margin-top:14px">
+  <button class="success" onclick="saveWorkoutLog()">✓ Save Workout & Diet Log</button>
+</div>
+<div id="workoutMsg" style="margin-top:12px"></div>
+</section>
+
+<!-- Members & Clients Management -->
+<section id="members" class="panel hidden">
+<h2>Register Members & PT Clients</h2>
+<div class="row">
+  <input id="mName" placeholder="Full name">
+  <input id="mPhone" placeholder="Phone">
+  <input id="mHeight" type="number" step="0.5" placeholder="Height (cm)">
+  <select id="mType" onchange="togglePtFields()">
+    <option value="General Gym">General Gym Member</option>
+    <option value="Personal Training">PT Client</option>
+  </select>
+</div>
+
+<div class="row" id="ptSpecificFields" style="margin-top:10px; display:none;">
+  <select id="cGoal">
+    <option value="Fat Loss">Fat Loss</option>
+    <option value="Muscle Gain">Muscle Gain</option>
+    <option value="Strength Peak">Strength Peak</option>
+    <option value="Rehab/Mobility">Rehab & Mobility</option>
+  </select>
+  <input id="mPlan" placeholder="Plan / Package (e.g. Monthly, 12-Session PT)">
+  <input id="cTargetWeight" type="number" step="0.1" placeholder="Target Weight (kg)">
+  <input id="cTargetBf" type="number" step="0.1" placeholder="Target Body Fat %">
+</div>
+
+<div style="margin-top:12px">
+  <button class="primary" onclick="addMember()">+ Add Member Profile</button>
+</div>
+
+<div style="margin-top:15px"><input id="memberSearch" oninput="renderMembers()" placeholder="Search members..."></div>
+<div id="memberList"></div>
+</section>
+
+<!-- History Section -->
+<section id="history" class="panel hidden">
+<h2>Activity History</h2>
+<div class="row" style="margin-bottom:12px">
+  <div>
+    <label>View Mode</label>
+    <select id="historyType" onchange="renderHistory()">
+      <option value="attendance">General Check-ins</option>
+      <option value="pt">PT Metrics & Workouts</option>
+    </select>
+  </div>
+  <div>
+    <label>Search Member / ID</label>
+    <input type="text" id="historyMemberSearch" placeholder="Type name or member ID..." oninput="renderHistory()">
+  </div>
+  <div>
+    <label>From Date</label>
+    <input type="date" id="fromDate" onchange="renderHistory()">
+  </div>
+  <div>
+    <label>To Date</label>
+    <input type="date" id="toDate" onchange="renderHistory()">
+  </div>
+  <div style="display:flex; align-items:flex-end; gap:8px;">
+    <button class="success" onclick="exportFilteredHistory()">📥 Export Filtered Log</button>
+    <button class="secondary" onclick="clearFilters()">Clear Filters</button>
+  </div>
+</div>
+
+<div style="overflow:auto">
+  <table id="attendanceTable">
+    <thead>
+      <tr><th>Date</th><th>Time</th><th>ID</th><th>Name</th><th>Membership Type</th></tr>
+    </thead>
+    <tbody id="attendanceHistoryBody"></tbody>
+  </table>
+
+  <table id="ptTable" class="hidden">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Client Name</th>
+        <th>Metrics (kg/BF%)</th>
+        <th>Waist / Hip (cm)</th>
+        <th>Chest / Arm / Thigh</th>
+        <th>Exercises / Sets & Reps</th>
+        <th>Diet & Nutrition</th>
+        <th>Photos</th>
+      </tr>
+    </thead>
+    <tbody id="ptHistoryBody"></tbody>
+  </table>
+</div>
+</section>
+
+<!-- Receipts & Passes Tab -->
+<section id="receipts" class="panel hidden">
+<h2>Member Receipts & Onboarding Passes</h2>
+<p class="muted">View and print registration receipts or PT onboarding cards.</p>
+
+<div class="layout-grid">
+  <div>
+    <input id="receiptSearch" oninput="renderReceiptList()" placeholder="Search members..." style="margin-bottom:10px">
+    <div id="receiptList" style="max-height: 380px; overflow-y: auto; border: 1px solid #eee; border-radius: 11px;"></div>
+  </div>
+  
+  <div class="preview-container">
+    <div id="receiptPreview">
+      <p class="muted">Select a member to preview their receipt.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- Backup & Export -->
+<section id="backup" class="panel hidden">
+<h2>Backup & Data Management</h2>
+<p class="muted">Your data is stored in this browser. Export regularly to avoid data loss.</p>
+<div class="row">
+  <button class="primary" onclick="exportTodayAttendanceCSV()">Export Today's Check-ins CSV</button>
+  <button class="secondary" onclick="exportAttendanceCSV()">Export All Check-ins CSV</button>
+  <button class="secondary" onclick="exportDuesCSV()">Export Dues CSV</button>
+  <button class="secondary" onclick="exportPtCSV()">Export PT Log CSV</button>
+  <button class="secondary" onclick="exportMembers()">Export Members Roster CSV</button>
+  <button class="secondary" onclick="downloadBackup()">Download Full JSON Backup</button>
+  <label class="primary" style="display:block;text-align:center;padding:12px;cursor:pointer">
+    Import Members (CSV / Excel)
+    <input type="file" accept=".csv, .xlsx, .xls" onchange="importMembersFile(event)" style="display:none">
+  </label>
+  <label class="secondary" style="display:block;text-align:center;padding:12px;cursor:pointer">
+    Restore JSON Backup
+    <input type="file" accept=".json" onchange="restoreBackup(event)" style="display:none">
+  </label>
+</div>
+</section>
+</div>
+
+<script>
+const KEY_ATTENDANCE='pf_attendance_v1';
+const KEY_PT='pf_pt_sessions_v3';
+const KEY_MEMBERS='pf_members_unified_v1';
+const KEY_DUES='pf_dues_v1';
+
+let attendance = JSON.parse(localStorage.getItem(KEY_ATTENDANCE)||"[]");
+let ptSessions = JSON.parse(localStorage.getItem(KEY_PT)||"[]");
+let members = JSON.parse(localStorage.getItem(KEY_MEMBERS)||"[]");
+let dues = JSON.parse(localStorage.getItem(KEY_DUES)||"[]");
+
+let selectedMemberIndex = 0;
+
+function save(){
+ localStorage.setItem(KEY_ATTENDANCE, JSON.stringify(attendance));
+ localStorage.setItem(KEY_PT, JSON.stringify(ptSessions));
+ localStorage.setItem(KEY_MEMBERS, JSON.stringify(members));
+ localStorage.setItem(KEY_DUES, JSON.stringify(dues));
+ renderAll();
+}
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function today(){return new Date().toISOString().slice(0,10)}
+function addMonths(dateStr, months) {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+function generateNextId(){
+ let n = members.length + 1, id = 'PF-' + String(n).padStart(4,'0');
+ while(members.some(x=>x.id===id)){ n++; id='PF-'+String(n).padStart(4,'0'); }
+ return id;
+}
+
+function togglePtFields() {
+ const type = document.getElementById('mType').value;
+ document.getElementById('ptSpecificFields').style.display = (type === 'Personal Training') ? 'flex' : 'none';
+}
+
+function checkIn(idToUse){
+ const inputEl = document.getElementById('checkinId');
+ const id = (idToUse || inputEl.value).trim().toUpperCase();
+ const msg = document.getElementById('checkinMsg');
+ if(!id){ msg.innerHTML='<span style="color:#b91c1c">Enter or select a member ID.</span>'; return; }
+ const m = members.find(x=>x.id===id || x.name.toLowerCase() === id.toLowerCase());
+ if(!m){ msg.innerHTML='<span style="color:#b91c1c">Member not found. Add member first.</span>'; return; }
+ const now = new Date();
+ attendance.unshift({
+   id: m.id, 
+   date: today(), 
+   time: now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 
+   name: m.name, 
+   plan: m.plan || m.type
+ });
+ save(); 
+ inputEl.value = '';
+ renderCheckinSearchResults();
+ msg.innerHTML = `<span style="color:#15803d"><b>✓ ${esc(m.name)}</b> checked in at ${now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}.</span>`;
+}
+
+function renderCheckinSearchResults() {
+ const q = (document.getElementById('checkinId')?.value || '').toLowerCase().trim();
+ const container = document.getElementById('checkinSearchResults');
+ const header = document.getElementById('checkinSearchResultsHeader');
+
+ if (!members.length) {
+   container.innerHTML = '<p class="muted" style="padding:10px 0; margin:0;">No registered members in the system yet.</p>';
+   return;
+ }
+
+ const filtered = members.filter(m => (m.name + ' ' + m.id + ' ' + (m.phone||'')).toLowerCase().includes(q));
+
+ if (q) {
+   header.textContent = `Matching Members (${filtered.length})`;
+ } else {
+   header.textContent = 'Quick Member Search (All Members)';
+ }
+
+ if (!filtered.length) {
+   container.innerHTML = '<p class="muted" style="padding:10px 0; margin:0;">No matching members found.</p>';
+   return;
+ }
+
+ container.innerHTML = filtered.map(m => `
+   <div class="member">
+     <div>
+       <b>${esc(m.name)}</b>
+       <div class="muted">${esc(m.id)} · ${esc(m.phone||'No phone')} · ${esc(m.type)} (${esc(m.plan)})</div>
+     </div>
+     <div>
+       <button class="success btn-sm" onclick="checkIn('${m.id}')">✓ Check In</button>
+     </div>
+   </div>
+ `).join('');
+}
+
+/* Monthly Dues Logic */
+function recordDuesPayment(){
+  const clientId = document.getElementById('dClientSelect').value;
+  const gender = document.getElementById('dGender').value;
+  const amount = document.getElementById('dAmount').value.trim();
+  const payDate = document.getElementById('dPayDate').value || today();
+  const dueDate = document.getElementById('dDueDate').value;
+  const note = document.getElementById('dNote').value.trim();
+  const msg = document.getElementById('duesMsg');
+
+  if(!clientId){ msg.innerHTML='<span style="color:#b91c1c">Please select a member/client.</span>'; return; }
+  if(!amount){ msg.innerHTML='<span style="color:#b91c1c">Please enter the paid amount.</span>'; return; }
+  if(!dueDate){ msg.innerHTML='<span style="color:#b91c1c">Please set the next due date.</span>'; return; }
+
+  const client = members.find(x=>x.id===clientId);
+  if(!client){ msg.innerHTML='<span style="color:#b91c1c">Member not found.</span>'; return; }
+
+  const duesRecord = {
+    id: client.id,
+    name: client.name,
+    gender,
+    type: client.type,
+    amount: parseFloat(amount).toFixed(2),
+    payDate,
+    dueDate,
+    note: note || 'Cash / Regular',
+    createdAt: new Date().toISOString()
+  };
+
+  dues.unshift(duesRecord);
+  save();
+
+  document.getElementById('dAmount').value = '';
+  document.getElementById('dGender').value = '';
+  document.getElementById('dNote').value = '';
+  document.getElementById('dClientSelect').value = '';
+  document.getElementById('dClientSearch').value = '';
+  document.getElementById('dPayDate').value = today();
+  document.getElementById('dDueDate').value = addMonths(today(), 1);
+
+  msg.innerHTML = `<span style="color:#15803d"><b>✓ Payment of ${esc(duesRecord.amount)} recorded for ${esc(client.name)}. Due on ${esc(dueDate)}.</b></span>`;
+}
+
+function getDueStatus(dueDateStr) {
+  const t = new Date(today());
+  const d = new Date(dueDateStr);
+  const diffDays = Math.ceil((d - t) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: 'Overdue', class: 'pill-danger', days: diffDays };
+  if (diffDays <= 5) return { label: `Due in ${diffDays}d`, class: 'pill-warning', days: diffDays };
+  return { label: 'Paid / Active', class: 'pill-active', days: diffDays };
+}
+
+function renderDuesTable(){
+  const filter = document.getElementById('duesFilterStatus')?.value || 'all';
+  const query = (document.getElementById('duesSearchInput')?.value || '').toLowerCase().trim();
+  const body = document.getElementById('duesTableBody');
+
+  if (!dues.length) {
+    body.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center; padding:15px;">No dues or payment history logged yet.</td></tr>';
+    return;
+  }
+
+  const filtered = dues.filter(item => {
+    const status = getDueStatus(item.dueDate);
+    const matchesQuery = (item.name + ' ' + item.id + ' ' + (item.gender||'') + ' ' + (item.note||'')).toLowerCase().includes(query);
+
+    if (!matchesQuery) return false;
+    if (filter === 'dueSoon') return status.days >= 0 && status.days <= 5;
+    if (filter === 'overdue') return status.days < 0;
+    if (filter === 'paid') return status.days > 5;
+    return true;
+  });
+
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center; padding:15px;">No matching dues records found.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.map((item, index) => {
+    const status = getDueStatus(item.dueDate);
+    return `
+      <tr>
+        <td><b>${esc(item.name)}</b><br><span class="muted">${esc(item.id)}</span></td>
+        <td>${esc(item.gender || '—')}</td>
+        <td>${esc(item.type)}</td>
+        <td><b>GHS ${esc(item.amount)}</b></td>
+        <td>${esc(item.payDate)}</td>
+        <td>${esc(item.dueDate)}</td>
+        <td><span class="pill ${status.class}">${status.label}</span></td>
+        <td>${esc(item.note)}</td>
+        <td>
+          <button class="secondary btn-sm" onclick="renewMemberDues('${item.id}')">Renew</button>
+          <button class="danger btn-sm" onclick="deleteDuesRecord(${index})">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renewMemberDues(memberId) {
+  const member = members.find(m => m.id === memberId);
+  if (!member) return;
+  
+  selectDuesClient(member.id, `${member.name} (${member.id})`);
+  document.getElementById('dPayDate').value = today();
+  document.getElementById('dDueDate').value = addMonths(today(), 1);
+  document.getElementById('dAmount').focus();
+  window.scrollTo({ top: document.getElementById('dues').offsetTop, behavior: 'smooth' });
+}
+
+function deleteDuesRecord(index) {
+  if (confirm('Delete this payment record?')) {
+    dues.splice(index, 1);
+    save();
+  }
+}
+
+/* Searchable Dropdown for Dues Tab */
+function showDuesClientOptions() {
+  renderDuesClientOptions();
+  document.getElementById('dClientOptions').classList.remove('hidden');
+}
+
+function filterDuesClients() {
+  document.getElementById('dClientSelect').value = '';
+  renderDuesClientOptions();
+  document.getElementById('dClientOptions').classList.remove('hidden');
+}
+
+function renderDuesClientOptions() {
+  const query = document.getElementById('dClientSearch').value.toLowerCase();
+  const optionsDiv = document.getElementById('dClientOptions');
+  
+  if (!members.length) {
+    optionsDiv.innerHTML = '<div class="dropdown-option muted">No members available</div>';
+    return;
+  }
+
+  const filtered = members.filter(m => (m.name + ' ' + m.id + ' ' + m.type).toLowerCase().includes(query));
+
+  if (!filtered.length) {
+    optionsDiv.innerHTML = '<div class="dropdown-option muted">No matching members</div>';
+    return;
+  }
+
+  optionsDiv.innerHTML = filtered.map(m => `
+    <div class="dropdown-option" onclick="selectDuesClient('${m.id}', '${esc(m.name)} (${esc(m.id)})')">
+      ${esc(m.name)} <span class="muted">(${esc(m.id)}) - ${esc(m.type)}</span>
+    </div>
+  `).join('');
+}
+
+function selectDuesClient(id, label) {
+  document.getElementById('dClientSelect').value = id;
+  document.getElementById('dClientSearch').value = label;
+  document.getElementById('dClientOptions').classList.add('hidden');
+}
+
+function logPtSession(){
+ const clientId = document.getElementById('sClientSelect').value;
+ const date = document.getElementById('sDate').value || today();
+ const weight = document.getElementById('sWeight').value.trim();
+ const bodyFat = document.getElementById('sBodyFat').value.trim();
+ const muscle = document.getElementById('sMuscle').value.trim();
+ const waist = document.getElementById('sWaist').value.trim();
+ const hip = document.getElementById('sHip').value.trim();
+ const chest = document.getElementById('sChest').value.trim();
+ const arm = document.getElementById('sArm').value.trim();
+ const thigh = document.getElementById('sThigh').value.trim();
+ const photoFront = document.getElementById('sPhotoFront').value.trim();
+ const photoSide = document.getElementById('sPhotoSide').value.trim();
+ const photoBack = document.getElementById('sPhotoBack').value.trim();
+ const msg = document.getElementById('sessionMsg');
+
+ if(!clientId){ msg.innerHTML='<span style="color:#b91c1c">Please select a client.</span>'; return; }
+ const client = members.find(x=>x.id===clientId);
+ if(!client){ msg.innerHTML='<span style="color:#b91c1c">Client not found.</span>'; return; }
+
+ const record = {
+   id: client.id,
+   name: client.name,
+   plan: client.plan || client.type,
+   height: client.height || 'N/A',
+   date,
+   time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+   weight: weight ? weight + ' kg' : '-',
+   bodyFat: bodyFat ? bodyFat + '%' : '-',
+   muscle: muscle ? muscle + ' kg' : '-',
+   waist: waist ? waist + ' cm' : '-',
+   hip: hip ? hip + ' cm' : '-',
+   chest: chest ? chest + ' cm' : '-',
+   arm: arm ? arm + ' cm' : '-',
+   thigh: thigh ? thigh + ' cm' : '-',
+   photoFront: photoFront || '-',
+   photoSide: photoSide || '-',
+   photoBack: photoBack || '-',
+   exercises: [],
+   diet: '-',
+   calories: '-',
+   water: '-'
+ };
+
+ ptSessions.unshift(record);
+ save();
+ ['sWeight','sBodyFat','sMuscle','sWaist','sHip','sChest','sArm','sThigh','sPhotoFront','sPhotoSide','sPhotoBack','sClientSearch','sClientSelect'].forEach(x=>document.getElementById(x).value='');
+ msg.innerHTML = `<span style="color:#15803d"><b>✓ Metrics logged for ${esc(client.name)}</b>.</span>`;
+}
+
+function addExerciseRow() {
+  const container = document.getElementById('exerciseRows');
+  const div = document.createElement('div');
+  div.className = 'row exercise-entry';
+  div.style.marginBottom = '8px';
+  div.innerHTML = `
+    <input placeholder="Exercise Name" class="ex-name">
+    <input type="number" placeholder="Sets" class="ex-sets" style="max-width:90px">
+    <input type="number" placeholder="Reps" class="ex-reps" style="max-width:90px">
+    <input type="number" step="0.5" placeholder="Weight (kg)" class="ex-weight" style="max-width:120px">
+  `;
+  container.appendChild(div);
+}
+
+function saveWorkoutLog() {
+  const clientId = document.getElementById('wClientSelect').value;
+  const date = document.getElementById('wDate').value || today();
+  const diet = document.getElementById('wDiet').value.trim();
+  const calories = document.getElementById('wCalories').value.trim();
+  const water = document.getElementById('wWater').value.trim();
+  const msg = document.getElementById('workoutMsg');
+
+  if(!clientId){ msg.innerHTML='<span style="color:#b91c1c">Select a client first.</span>'; return; }
+  const client = members.find(x=>x.id===clientId);
+
+  const exEntries = [];
+  document.querySelectorAll('.exercise-entry').forEach(row => {
+    const name = row.querySelector('.ex-name').value.trim();
+    const sets = row.querySelector('.ex-sets').value.trim();
+    const reps = row.querySelector('.ex-reps').value.trim();
+    const weight = row.querySelector('.ex-weight').value.trim();
+    if (name) {
+      exEntries.push({ name, sets: sets || '0', reps: reps || '0', weight: weight ? weight + 'kg' : '-' });
+    }
+  });
+
+  const record = {
+    id: client.id,
+    name: client.name,
+    plan: client.plan || client.type,
+    height: client.height || 'N/A',
+    date,
+    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+    weight: '-', bodyFat: '-', muscle: '-', waist: '-', hip: '-', chest: '-', arm: '-', thigh: '-',
+    photoFront: '-', photoSide: '-', photoBack: '-',
+    exercises: exEntries,
+    diet: diet || 'None recorded',
+    calories: calories ? calories + ' kcal' : '-',
+    water: water ? water + ' L' : '-'
+  };
+
+  ptSessions.unshift(record);
+  save();
+  document.getElementById('wDiet').value = '';
+  document.getElementById('wCalories').value = '';
+  document.getElementById('wWater').value = '';
+  document.getElementById('wClientSearch').value = '';
+  document.getElementById('wClientSelect').value = '';
+  document.getElementById('exerciseRows').innerHTML = `
+    <div class="row exercise-entry" style="margin-bottom:8px">
+      <input placeholder="Exercise Name" class="ex-name">
+      <input type="number" placeholder="Sets" class="ex-sets" style="max-width:90px">
+      <input type="number" placeholder="Reps" class="ex-reps" style="max-width:90px">
+      <input type="number" step="0.5" placeholder="Weight (kg)" class="ex-weight" style="max-width:120px">
+    </div>
+  `;
+  msg.innerHTML = `<span style="color:#15803d"><b>✓ Daily Workout & Diet saved for ${esc(client.name)}</b>.</span>`;
+}
+
+/* Searchable Dropdown for PT Metrics Tab */
+function showMetricsClientOptions() {
+  renderMetricsClientOptions();
+  document.getElementById('sClientOptions').classList.remove('hidden');
+}
+
+function filterMetricsClients() {
+  document.getElementById('sClientSelect').value = '';
+  renderMetricsClientOptions();
+  document.getElementById('sClientOptions').classList.remove('hidden');
+}
+
+function renderMetricsClientOptions() {
+  const query = document.getElementById('sClientSearch').value.toLowerCase();
+  const optionsDiv = document.getElementById('sClientOptions');
+  
+  if (!members.length) {
+    optionsDiv.innerHTML = '<div class="dropdown-option muted">No members available</div>';
+    return;
+  }
+
+  const filtered = members.filter(m => (m.name + ' ' + m.id + ' ' + m.type).toLowerCase().includes(query));
+
+  if (!filtered.length) {
+    optionsDiv.innerHTML = '<div class="dropdown-option muted">No matching members</div>';
+    return;
+  }
+
+  optionsDiv.innerHTML = filtered.map(m => `
+    <div class="dropdown-option" onclick="selectMetricsClient('${m.id}', '${esc(m.name)} (${esc(m.id)})')">
+      ${esc(m.name)} <span class="muted">(${esc(m.id)}) - ${esc(m.type)}</span>
+    </div>
+  `).join('');
+}
+
+function selectMetricsClient(id, label) {
+  document.getElementById('sClientSelect').value = id;
+  document.getElementById('sClientSearch').value = label;
+  document.getElementById('sClientOptions').classList.add('hidden');
+}
+
+/* Searchable Dropdown for Workout & Diet Tab */
+function showWorkoutClientOptions() {
+  renderWorkoutClientOptions();
+  document.getElementById('wClientOptions').classList.remove('hidden');
+}
+
+function filterWorkoutClients() {
+  document.getElementById('wClientSelect').value = '';
+  renderWorkoutClientOptions();
+  document.getElementById('wClientOptions').classList.remove('hidden');
+}
+
+function renderWorkoutClientOptions() {
+  const query = document.getElementById('wClientSearch').value.toLowerCase();
+  const optionsDiv = document.getElementById('wClientOptions');
+  
+  if (!members.length) {
+    optionsDiv.innerHTML = '<div class="dropdown-option muted">No members available</div>';
+    return;
+  }
+
+  const filtered = members.filter(m => (m.name + ' ' + m.id + ' ' + m.type).toLowerCase().includes(query));
+
+  if (!filtered.length) {
+    optionsDiv.innerHTML = '<div class="dropdown-option muted">No matching members</div>';
+    return;
+  }
+
+  optionsDiv.innerHTML = filtered.map(m => `
+    <div class="dropdown-option" onclick="selectWorkoutClient('${m.id}', '${esc(m.name)} (${esc(m.id)})')">
+      ${esc(m.name)} <span class="muted">(${esc(m.id)}) - ${esc(m.type)}</span>
+    </div>
+  `).join('');
+}
+
+function selectWorkoutClient(id, label) {
+  document.getElementById('wClientSelect').value = id;
+  document.getElementById('wClientSearch').value = label;
+  document.getElementById('wClientOptions').classList.add('hidden');
+}
+
+/* Close dropdowns on outside click */
+document.addEventListener('click', function(e) {
+  ['sClientContainer', 'wClientContainer', 'dClientContainer'].forEach(id => {
+    const container = document.getElementById(id);
+    if (container && !container.contains(e.target)) {
+      container.querySelector('.dropdown-options')?.classList.add('hidden');
+    }
+  });
+});
+
+function addMember(){
+ const name = document.getElementById('mName').value.trim();
+ const phone = document.getElementById('mPhone').value.trim();
+ const height = document.getElementById('mHeight').value.trim();
+ const type = document.getElementById('mType').value;
+ const planInput = document.getElementById('mPlan').value.trim();
+ const goal = document.getElementById('cGoal').value;
+ const targetWeight = document.getElementById('cTargetWeight').value.trim();
+ const targetBf = document.getElementById('cTargetBf').value.trim();
+
+ if(!name) return alert('Enter member name.');
+
+ const id = generateNextId();
+ const registeredAt = today();
+ const newMember = {
+   id, 
+   name, 
+   phone, 
+   height: height ? height + ' cm' : 'N/A',
+   type,
+   plan: planInput || (type === 'Personal Training' ? goal : 'Standard Membership'),
+   goal: type === 'Personal Training' ? goal : 'N/A',
+   targetWeight: targetWeight ? targetWeight + ' kg' : 'N/A',
+   targetBf: targetBf ? targetBf + '%' : 'N/A',
+   registeredAt
+ };
+
+ members.unshift(newMember);
+ save();
+
+ ['mName','mPhone','mHeight','mPlan','cTargetWeight','cTargetBf'].forEach(x=>document.getElementById(x).value='');
+ selectedMemberIndex = 0;
+ showTab('receipts', document.getElementById('tab-receipts-btn'));
+}
+
+function viewRegistrationReceipt(index) {
+ selectedMemberIndex = index;
+ showTab('receipts', document.getElementById('tab-receipts-btn'));
+}
+
+function selectReceipt(index) {
+ selectedMemberIndex = index;
+ renderReceiptList();
+ renderReceiptPreview();
+}
+
+function renderReceiptList() {
+ const q = (document.getElementById('receiptSearch')?.value || '').toLowerCase();
+ const container = document.getElementById('receiptList');
+ 
+ const filtered = members.map((item, idx) => ({ ...item, originalIndex: idx }))
+                         .filter(x => (x.name + ' ' + x.id + ' ' + (x.phone||'')).toLowerCase().includes(q));
+
+ if (filtered.length === 0) {
+   container.innerHTML = '<p class="muted" style="padding: 12px; margin: 0;">No registered members found.</p>';
+   return;
+ }
+
+ container.innerHTML = filtered.map(item => `
+   <div class="member ${item.originalIndex === selectedMemberIndex ? 'item-active' : ''}" 
+        style="padding: 10px 12px; cursor: pointer;" 
+        onclick="selectReceipt(${item.originalIndex})">
+     <div>
+       <b>${esc(item.name)}</b>
+       <div class="muted">${esc(item.id)} · ${esc(item.type)}</div>
+     </div>
+     <div><span class="pill pill-active">Pass</span></div>
+   </div>
+ `).join('');
+}
+
+function renderReceiptPreview() {
+ const preview = document.getElementById('receiptPreview');
+ const m = members[selectedMemberIndex];
+
+ if (!m) {
+   preview.innerHTML = '<p class="muted">No member selected.</p>';
+   return;
+ }
+
+ const isPt = m.type === 'Personal Training';
+
+ preview.innerHTML = `
+   <div class="receipt-box" id="printableReceipt">
+     <div class="receipt-header">
+       <h3 class="receipt-title">Pekay Fitness</h3>
+       <div style="font-size: 11px; font-weight: bold; margin-top: 2px;">
+         ${isPt ? 'PERSONAL TRAINING ONBOARDING CARD' : 'MEMBERSHIP REGISTRATION RECEIPT'}
+       </div>
+     </div>
+     <div class="receipt-row"><span>Date:</span><span>${esc(m.registeredAt || today())}</span></div>
+     <div class="receipt-row"><span>Member ID:</span><b>${esc(m.id)}</b></div>
+     <div class="receipt-row"><span>Full Name:</span><b>${esc(m.name)}</b></div>
+     <div class="receipt-row"><span>Phone:</span><span>${esc(m.phone || 'N/A')}</span></div>
+     <div class="receipt-row"><span>Category:</span><span>${esc(m.type)}</span></div>
+     <div class="receipt-row"><span>Plan / Goal:</span><span>${esc(m.plan)}</span></div>
+     ${isPt ? `
+       <div class="receipt-row"><span>Height:</span><span>${esc(m.height)}</span></div>
+       <div class="receipt-row"><span>Target Weight:</span><span>${esc(m.targetWeight)}</span></div>
+       <div class="receipt-row"><span>Target Body Fat:</span><span>${esc(m.targetBf)}</span></div>
+     ` : ''}
+     <div class="receipt-footer">
+       <div>Welcome to Pekay Fitness!</div>
+       <div style="margin-top:4px; font-weight:bold;">Keep this pass for your records.</div>
+     </div>
+   </div>
+   <button class="primary no-print" style="margin-top: 15px; width: 100%; max-width: 340px;" onclick="window.print()">🖨️ Print Pass / Receipt</button>
+ `;
+}
+
+function renderAll(){
+ renderStats();
+ renderMembers();
+ renderHistory();
+ renderCheckinSearchResults();
+ renderDuesTable();
+ renderReceiptList();
+ renderReceiptPreview();
+}
+
+function renderStats(){
+ document.getElementById('todayCount').textContent = attendance.filter(x=>x.date===today()).length;
+ document.getElementById('memberCount').textContent = members.length;
+ document.getElementById('totalSessions').textContent = ptSessions.length;
+ 
+ const pendingCount = dues.filter(d => getDueStatus(d.dueDate).days <= 5).length;
+ document.getElementById('pendingDuesCount').textContent = pendingCount;
+
+ const bfEntries = ptSessions.filter(x=>x.bodyFat && x.bodyFat !== '-').map(x=>parseFloat(x.bodyFat));
+ const avgBf = bfEntries.length ? (bfEntries.reduce((a,b)=>a+b,0)/bfEntries.length).toFixed(1) + '%' : 'N/A';
+ document.getElementById('avgBf').textContent = avgBf;
+}
+
+function renderMembers(){
+ const q = (document.getElementById('memberSearch')?.value || '').toLowerCase();
+ const list = members.map((m, idx) => ({ ...m, originalIndex: idx })).filter(m=>(m.name+' '+m.id+' '+(m.phone||'')).toLowerCase().includes(q));
+ 
+ document.getElementById('memberList').innerHTML = list.map(m => `
+   <div class="member">
+     <div>
+       <b>${esc(m.name)}</b>
+       <div class="muted">${esc(m.id)} · ${esc(m.phone||'N/A')} · ${esc(m.type)} (${esc(m.plan)})</div>
+     </div>
+     <div>
+       <button class="secondary btn-sm" onclick="viewRegistrationReceipt(${m.originalIndex})">Pass</button>
+       <button class="success btn-sm" onclick="quickCheckIn('${m.id}')">Check in</button>
+       <button class="danger btn-sm" onclick="removeMember('${m.id}')">Delete</button>
+     </div>
+   </div>
+ `).join('') || '<p class="muted">No members recorded.</p>';
+}
+
+function quickCheckIn(id){
+ document.getElementById('checkinId').value = id;
+ showTab('checkin', document.querySelector('.tabs button'));
+ checkIn(id);
+}
+
+function removeMember(id){
+ if(confirm('Delete member? Attendance, PT history, and dues logs will remain intact.')){
+   members = members.filter(m=>m.id!==id);
+   save();
+ }
+}
+
+function renderHistory(){
+ const type = document.getElementById('historyType').value;
+ const memQuery = (document.getElementById('historyMemberSearch')?.value || '').toLowerCase().trim();
+ const f = document.getElementById('fromDate')?.value || '';
+ const t = document.getElementById('toDate')?.value || '';
+
+ const attTable = document.getElementById('attendanceTable');
+ const ptTable = document.getElementById('ptTable');
+
+ if (type === 'attendance') {
+   attTable.classList.remove('hidden');
+   ptTable.classList.add('hidden');
+   
+   let records = attendance.filter(x => 
+     (!f || x.date >= f) && 
+     (!t || x.date <= t) &&
+     (!memQuery || (x.name + ' ' + x.id).toLowerCase().includes(memQuery))
+   );
+
+   document.getElementById('attendanceHistoryBody').innerHTML = records.map(x=>`
+     <tr>
+       <td>${esc(x.date)}</td>
+       <td>${esc(x.time)}</td>
+       <td>${esc(x.id)}</td>
+       <td><b>${esc(x.name)}</b></td>
+       <td>${esc(x.plan)}</td>
+     </tr>
+   `).join('') || '<tr><td colspan="5">No attendance check-in records found.</td></tr>';
+ } else {
+   attTable.classList.add('hidden');
+   ptTable.classList.remove('hidden');
+
+   let records = ptSessions.filter(x => 
+     (!f || x.date >= f) && 
+     (!t || x.date <= t) &&
+     (!memQuery || (x.name + ' ' + x.id).toLowerCase().includes(memQuery))
+   );
+
+   document.getElementById('ptHistoryBody').innerHTML = records.map(x=>`
+     <tr>
+       <td>${esc(x.date)}</td>
+       <td><b>${esc(x.name)}</b><br><span class="muted">${esc(x.id)}</span></td>
+       <td>Wt: ${esc(x.weight)}<br>BF: ${esc(x.bodyFat)}</td>
+       <td>W: ${esc(x.waist)}<br>H: ${esc(x.hip)}</td>
+       <td>C: ${esc(x.chest)} | A: ${esc(x.arm)}<br>T: ${esc(x.thigh)}</td>
+       <td>${x.exercises && x.exercises.length ? x.exercises.map(e => `• ${esc(e.name)}:${esc(e.sets)}s x ${esc(e.reps)}r @ ${esc(e.weight)}`).join('<br>') : '-'}</td>
+       <td><b>Diet:</b> ${esc(x.diet)}<br><span class="muted">Cal: ${esc(x.calories)} | Water: ${esc(x.water)}</span></td>
+       <td>
+         F: ${x.photoFront !== '-' ? `<a href="${esc(x.photoFront)}" target="_blank">Front</a>` : '-'}<br>
+         S: ${x.photoSide !== '-' ? `<a href="${esc(x.photoSide)}" target="_blank">Side</a>` : '-'}<br>
+         B: ${x.photoBack !== '-' ? `<a href="${esc(x.photoBack)}" target="_blank">Back</a>` : '-'}
+       </td>
+     </tr>
+   `).join('') || '<tr><td colspan="8">No PT sessions logged found.</td></tr>';
+ }
+}
+
+function exportFilteredHistory(){
+ const type = document.getElementById('historyType').value;
+ const memQuery = (document.getElementById('historyMemberSearch')?.value || '').toLowerCase().trim();
+ const f = document.getElementById('fromDate')?.value || '';
+ const t = document.getElementById('toDate')?.value || '';
+ const dateSuffix = (f || t) ? `_${f || 'start'}_to_${t || 'end'}` : '_all';
+
+ if (type === 'attendance') {
+   const records = attendance.filter(x => 
+     (!f || x.date >= f) && 
+     (!t || x.date <= t) &&
+     (!memQuery || (x.name + ' ' + x.id).toLowerCase().includes(memQuery))
+   );
+   if (records.length === 0) return alert('No check-in records found for the selected filter criteria.');
+   download(`pekay_filtered_attendance${dateSuffix}.csv`, csv([
+     ['Date','Time','Member ID','Name','Plan'],
+     ...records.map(x=>[x.date, x.time, x.id, x.name, x.plan])
+   ]));
+ } else {
+   const records = ptSessions.filter(x => 
+     (!f || x.date >= f) && 
+     (!t || x.date <= t) &&
+     (!memQuery || (x.name + ' ' + x.id).toLowerCase().includes(memQuery))
+   );
+   if (records.length === 0) return alert('No PT records found for the selected filter criteria.');
+   download(`pekay_filtered_pt_logs${dateSuffix}.csv`, csv([
+     ['Date','Time','Client ID','Name','Height','Weight','BodyFat','Muscle','Waist','Hip','Chest','Arm','Thigh','Exercises','Diet','Calories','Water','PhotoFront','PhotoSide','PhotoBack'],
+     ...records.map(x=>[x.date, x.time, x.id, x.name, x.height, x.weight, x.bodyFat, x.muscle, x.waist, x.hip, x.chest, x.arm, x.thigh, JSON.stringify(x.exercises||[]), x.diet, x.calories, x.water, x.photoFront, x.photoSide, x.photoBack])
+   ]));
+ }
+}
+
+function csv(rows){ return rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n'); }
+function download(name,text,type='text/csv'){ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href); }
+
+function exportTodayAttendanceCSV(){
+ const todayRecords = attendance.filter(x => x.date === today());
+ if(todayRecords.length === 0) return alert('No check-ins recorded for today yet.');
+ download('pekay_attendance_today_'+today()+'.csv', csv([['Date','Time','Member ID','Name','Plan'],...todayRecords.map(x=>[x.date,x.time,x.id,x.name,x.plan])]));
+}
+
+function exportAttendanceCSV(){
+ download('pekay_attendance_all_'+today()+'.csv', csv([['Date','Time','Member ID','Name','Plan'],...attendance.map(x=>[x.date,x.time,x.id,x.name,x.plan])]));
+}
+
+function exportDuesCSV(){
+ download('pekay_dues_'+today()+'.csv', csv([['Member ID','Name','Gender','Category','Amount Paid','Payment Date','Next Due Date','Notes'],...dues.map(x=>[x.id,x.name,x.gender||'',x.type,x.amount,x.payDate,x.dueDate,x.note])]));
+}
+
+function exportPtCSV(){
+ download('pekay_pt_sessions_all_'+today()+'.csv', csv([['Date','Time','Client ID','Name','Height','Weight','BodyFat','Muscle','Waist','Hip','Chest','Arm','Thigh','Exercises','Diet','Calories','Water','PhotoFront','PhotoSide','PhotoBack'],...ptSessions.map(x=>[x.date,x.time,x.id,x.name,x.height,x.weight,x.bodyFat,x.muscle,x.waist,x.hip,x.chest,x.arm,x.thigh,JSON.stringify(x.exercises||[]),x.diet,x.calories,x.water,x.photoFront,x.photoSide,x.photoBack])]));
+}
+
+function exportMembers(){
+ download('pekay_members_'+today()+'.csv', csv([['Member ID','Name','Phone','Height','Type','Plan/Goal','Target Weight','Target BF%','Registered Date'],...members.map(x=>[x.id,x.name,x.phone,x.height||'N/A',x.type||'General Gym',x.plan,x.targetWeight||'N/A',x.targetBf||'N/A',x.registeredAt||today()])]));
+}
+
+function downloadBackup(){
+ download('pekay_fitness_unified_backup_'+today()+'.json', JSON.stringify({members, attendance, ptSessions, dues, exportedAt:new Date().toISOString()}, null, 2), 'application/json');
+}
+
+function restoreBackup(e){
+ const f = e.target.files[0];
+ if(!f) return;
+ const r = new FileReader();
+ r.onload = () => {
+   try {
+     const d = JSON.parse(r.result);
+     if(!Array.isArray(d.members)) throw 0;
+     members = d.members;
+     attendance = d.attendance || [];
+     ptSessions = d.ptSessions || [];
+     dues = d.dues || [];
+     save();
+     alert('Backup restored successfully.');
+   } catch {
+     alert('Invalid backup file format.');
+   }
+ };
+ r.readAsText(f);
+}
+
+function importMembersFile(e){
+ const file = e.target.files[0];
+ if(!file) return;
+ const reader = new FileReader();
+
+ reader.onload = function(evt) {
+  try {
+   const data = new Uint8Array(evt.target.result);
+   const workbook = XLSX.read(data, {type: 'array'});
+   const firstSheetName = workbook.SheetNames[0];
+   const worksheet = workbook.Sheets[firstSheetName];
+   const jsonRows = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+
+   if(!jsonRows || jsonRows.length === 0) return alert('File contains no data.');
+
+   let addedCount = 0, skippedCount = 0;
+
+   jsonRows.forEach(row => {
+    const keys = Object.keys(row);
+    const getVal = (...names) => {
+     const k = keys.find(key => names.some(n => key.trim().toLowerCase() === n.toLowerCase()));
+     return k ? String(row[k]).trim() : '';
+    };
+
+    const name = getVal('Name', 'Full Name', 'Member Name', 'Client Name');
+    if(!name) return;
+
+    let id = getVal('Member ID', 'Client ID', 'ID').toUpperCase();
+    const phone = getVal('Phone', 'Contact');
+    const height = getVal('Height', 'Height (cm)');
+    const type = getVal('Type', 'Category') || 'General Gym';
+    const plan = getVal('Plan', 'Goal', 'Membership Plan') || 'Standard Membership';
+
+    if(!id) id = generateNextId();
+
+    const exists = members.some(m => m.id === id || m.name.toLowerCase() === name.toLowerCase());
+
+    if(!exists) {
+     members.unshift({
+       id, 
+       name, 
+       phone, 
+       height: height ? height + ' cm' : 'N/A', 
+       type,
+       plan, 
+       goal: 'N/A',
+       targetWeight: 'N/A', 
+       targetBf: 'N/A', 
+       registeredAt: today()
+     });
+     addedCount++;
+    } else {
+     skippedCount++;
+    }
+   });
+
+   save();
+   alert(`Import complete!\n✓ Added: ${addedCount} member(s)\n⚠ Skipped: ${skippedCount}`);
+  } catch(err) {
+   alert('Failed to parse file. Please select a valid CSV or Excel file.');
+  }
+  e.target.value = '';
+ };
+
+ reader.readAsArrayBuffer(file);
+}
+
+function clearFilters(){
+ document.getElementById('historyMemberSearch').value = '';
+ document.getElementById('fromDate').value = '';
+ document.getElementById('toDate').value = '';
+ renderHistory();
+}
+
+function showTab(id, btn){
+ document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+ document.getElementById(id).classList.remove('hidden');
+ document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+ if(btn) btn.classList.add('active');
+}
+
+document.getElementById('sDate').value = today();
+document.getElementById('wDate').value = today();
+document.getElementById('dPayDate').value = today();
+document.getElementById('dDueDate').value = addMonths(today(), 1);
+renderAll();
+</script>
+</body>
+</html>
